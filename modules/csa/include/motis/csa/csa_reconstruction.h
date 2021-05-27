@@ -56,6 +56,148 @@ struct csa_reconstruction {
     return start_times_.find(station) != end(start_times_);
   }
 
+  void extract_equivalent_journeys(time start_time, time arrival_time,
+                                   unsigned transfers, csa_station const* destination_station,
+                                   std::vector<csa_journey>& journey_list){
+    auto lis = extract_journey_recursion(start_time, arrival_time, transfers, destination_station,transfers);
+    for(csa_journey& j : lis){
+      if (Dir == search_dir::BWD) {
+        std::reverse(begin(j.edges_), end(j.edges_));
+      }
+      journey_list.push_back(j);
+    }
+  }
+
+  std::vector<csa_journey> extract_journey_recursion( time start_time, time arrival_time,
+                                 unsigned transfers, csa_station const* destination_station, unsigned top_transfers){
+
+    std::vector<csa_journey> result;
+    if(transfers == 0){
+      csa_journey j = {Dir,start_time,arrival_time, top_transfers,destination_station};
+      j.start_station_ = destination_station;
+      if (!is_start(destination_station->id_)) {
+        add_final_footpath(j, destination_station, transfers);
+      }
+      result.emplace_back(j);
+      return result;
+    }
+
+    auto journey_pointers = get_journey_pointers(*destination_station, transfers);
+    std::vector<journey_pointer> journey_pointers_corrected;
+
+    for(auto& jp : journey_pointers){
+      if(jp.valid()){
+        if (transfers == top_transfers &&
+            jp.footpath_->from_station_ != jp.footpath_->to_station_) {
+          auto const con_arr_jps =
+              look_for_conn_arrivals_within_transfer_time(destination_station, transfers);
+          auto valid = 0;
+          for(auto& con_arr_jp : con_arr_jps){
+            if(con_arr_jp.valid()){
+              valid++;
+              journey_pointers_corrected.emplace_back(con_arr_jp);
+            }
+          }
+          if(valid == 0){
+            journey_pointers_corrected.emplace_back(jp);
+          }
+        }else{
+          journey_pointers_corrected.emplace_back(jp);
+        }
+      }else{
+        journey_pointers_corrected.emplace_back(jp);
+      }
+    }
+
+    for(const auto& jp : journey_pointers_corrected){
+      if(jp.valid()){
+
+        auto cur_list = Dir == search_dir::FWD ? extract_journey_recursion(
+            start_time,jp.enter_con_->departure_, transfers-1,&tt_.stations_[jp.enter_con_->from_station_],top_transfers)
+            : extract_journey_recursion(
+                start_time,jp.exit_con_->arrival_, transfers-1,&tt_.stations_[jp.exit_con_->to_station_],top_transfers);
+        for(auto& j : cur_list){
+          assert(jp.enter_con_->trip_ == jp.exit_con_->trip_);
+          auto const& trip_cons = tt_.trip_to_connections_[jp.exit_con_->trip_];
+          auto const add_trip_edge = [&](csa_connection const* con) {
+            auto const enter = con == jp.enter_con_;
+            auto const exit = con == jp.exit_con_;
+            utl::verify(con->light_con_ != nullptr, "invalid light connection");
+            j.edges_.emplace_back(con->light_con_,
+                                  &tt_.stations_[con->from_station_],
+                                  &tt_.stations_[con->to_station_], enter, exit,
+                                  con->departure_, con->arrival_);
+          };
+          if (Dir == search_dir::FWD) {
+            auto in_trip = false;
+            for (int i = 0; i <static_cast<int>(trip_cons.size()); ++i) {
+              auto const con = trip_cons[i];
+              if (con == jp.enter_con_) {
+                in_trip = true;
+              }
+              if (in_trip) {
+                add_trip_edge(con);
+              }
+              if (con == jp.exit_con_) {
+                break;
+              }
+            }
+          } else {
+            auto in_trip = false;
+            for (int i = static_cast<int>(trip_cons.size()) - 1; i >= 0; --i) {
+              auto const con = trip_cons[i];
+              if (con == jp.exit_con_) {
+                in_trip = true;
+              }
+              if (in_trip) {
+                add_trip_edge(con);
+              }
+              if (con == jp.enter_con_) {
+                break;
+              }
+            }
+
+          }
+          if(jp.footpath_->from_station_ != jp.footpath_->to_station_){
+            if (Dir == search_dir::FWD) {
+              j.edges_.emplace_back(
+                  &tt_.stations_[jp.footpath_->from_station_],
+                  &tt_.stations_[jp.footpath_->to_station_],
+                  jp.exit_con_->arrival_,
+                  jp.exit_con_->arrival_ + jp.footpath_->duration_, -1);
+              j.destination_station_ = destination_station;
+              j.arrival_time_ = arrival_time;
+            }else{
+              j.edges_.emplace_back(
+                  &tt_.stations_[jp.footpath_->from_station_],
+                  &tt_.stations_[jp.footpath_->to_station_],
+                  jp.enter_con_->departure_ - jp.footpath_->duration_,
+                  jp.enter_con_->departure_, -1);
+              j.start_station_ = &tt_.stations_[jp.footpath_->from_station_];
+              j.start_time_ = jp.enter_con_->departure_ - jp.footpath_->duration_;
+            }
+          }
+          result.push_back(j);
+        }
+      }else{
+        if (!is_start(destination_station->id_)) {
+          if (transfers != 0) {
+            LOG(motis::logging::warn)
+                << "csa extract journey: adding final footpath "
+                   "with transfers="
+                << transfers;
+          }
+          csa_journey j = {Dir,start_time,arrival_time,transfers,destination_station};
+          add_final_footpath(j, destination_station, transfers);
+          result.push_back(j);
+        }
+
+      }
+    }
+    return result;
+  }
+
+
   void extract_journey(csa_journey& j) {
     if (j.is_reconstructed()) {
       return;
@@ -166,6 +308,22 @@ struct csa_reconstruction {
     return {};
   }
 
+  std::vector<journey_pointer> look_for_conn_arrivals_within_transfer_time(
+      csa_station const* stop, int transfers) {
+    std::vector<journey_pointer> result;
+    for (auto t = 0U; t <= tt_.stations_[stop->id_].transfer_time_; ++t) {
+      auto const offset = Dir == search_dir::FWD ? t : -t;
+      auto const jp = get_journey_pointers(
+          *stop, transfers, arrival_time_[stop->id_][transfers] + offset);
+      for(auto j : jp){
+        if(j.valid()){
+          result.emplace_back(j);
+        }
+      }
+    }
+    return result;
+  }
+
   void add_final_footpath(csa_journey& j, csa_station const* stop,
                           int transfers) {
     assert(transfers == 0);
@@ -202,6 +360,63 @@ struct csa_reconstruction {
         }
       }
     }
+  }
+
+  std::vector<journey_pointer> get_journey_pointers(
+      csa_station const& station, int transfers,
+      time const station_arrival_override = INVALID){
+
+    auto const is_override_active = station_arrival_override != INVALID;
+    auto const& station_arrival = is_override_active
+                                  ? station_arrival_override
+                                  : arrival_time_[station.id_][transfers];
+    std::vector<journey_pointer> result;
+
+    if (Dir == search_dir::FWD) {
+      for (auto const& fp : station.incoming_footpaths_) {
+        if (is_override_active && fp.from_station_ != fp.to_station_) {
+          continue;  // Override => we are looking for connection arrivals.
+        }
+
+        auto const& fp_dep_stop = tt_.stations_[fp.from_station_];
+        for (auto const& exit_con : get_exit_candidates(
+            fp_dep_stop, station_arrival - fp.duration_, transfers)) {
+          for (auto const& enter_con :
+              tt_.trip_to_connections_[exit_con->trip_]) {
+            if (arrival_time_[enter_con->from_station_][transfers - 1] <=
+                enter_con->departure_ &&
+                enter_con->from_in_allowed_) {
+              result.emplace_back(enter_con, exit_con, &fp);
+            }
+            if (enter_con == exit_con) {
+              break;
+            }
+          }
+        }
+      }
+    } else {
+      for (auto const& fp : station.footpaths_) {
+        auto const& fp_arr_stop = tt_.stations_[fp.to_station_];
+        for (auto const& enter_con : get_enter_candidates(
+            fp_arr_stop, station_arrival + fp.duration_, transfers)) {
+          auto const& trip_cons = tt_.trip_to_connections_[enter_con->trip_];
+          for (auto i = static_cast<int>(trip_cons.size()) - 1; i >= 0; --i) {
+            auto const& exit_con = trip_cons[i];
+            auto const exit_arrival =
+                arrival_time_[exit_con->to_station_][transfers - 1];
+            if (exit_arrival != INVALID && exit_arrival >= exit_con->arrival_ &&
+                exit_con->to_out_allowed_) {
+              result.emplace_back(enter_con, exit_con, &fp);
+            }
+            if (exit_con == enter_con) {
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    return result;
   }
 
   journey_pointer get_journey_pointer(
