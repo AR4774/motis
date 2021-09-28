@@ -12,9 +12,9 @@
 #endif
 #include "motis/csa/cpu/csa_profile_search_default_cpu.h"
 #include "motis/csa/cpu/csa_search_default_cpu.h"
-#include "motis/csa/error.h"
 #include "motis/csa/pareto_set.h"
 #include "motis/csa/pretrip.h"
+
 
 using namespace motis::routing;
 
@@ -149,13 +149,14 @@ response run_csa_search(schedule const& sched, csa_timetable const& tt,
                         csa_query const& q, SearchType const search_type,
                         implementation_type const impl_type,
                         bool use_profile_search) {
+  std::cout << "SEARCHING" << q.include_equivalent_ << "\n";
+
   if ((tt.fwd_connections_.empty() && q.dir_ == search_dir::FWD) ||
       (tt.bwd_connections_.empty() && q.dir_ == search_dir::BWD)) {
     response r;
     r.searched_interval_ = q.search_interval_;
     return r;
   }
-
   return q.dir_ == search_dir::FWD
              ? dispatch_search_type<search_dir::FWD>(
                    sched, tt, q, search_type, impl_type, use_profile_search)

@@ -4,7 +4,7 @@ project(motis)
 include_directories(include)
 
 file(GLOB_RECURSE motis-intermodal-files src/*.cc)
-add_library(motis-intermodal STATIC ${motis-intermodal-files})
+add_library(motis-intermodal STATIC ${motis-intermodal-files} ../csa/include/motis/csa/pretrip_alternative.h)
 target_include_directories(motis-intermodal PUBLIC include)
 target_compile_features(motis-intermodal PUBLIC cxx_std_17)
 target_link_libraries(motis-intermodal

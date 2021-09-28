@@ -6,10 +6,10 @@
 
 #include "motis/core/common/logging.h"
 
-#include "motis/tripbased/data.h"
-#include "motis/tripbased/limits.h"
-#include "motis/tripbased/tb_journey.h"
-#include "motis/tripbased/tb_statistics.h"
+#include "data.h"
+#include "limits.h"
+#include "tb_journey.h"
+#include "tb_statistics.h"
 
 namespace motis::tripbased {
 

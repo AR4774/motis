@@ -4,7 +4,7 @@
 
 #include "motis/core/schedule/schedule.h"
 
-#include "motis/tripbased/data.h"
+#include "data.h"
 
 namespace motis::tripbased {
 

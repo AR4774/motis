@@ -1,5 +1,6 @@
 #pragma once
 
+#include "motis/core/schedule/edges.h"
 #include "motis/csa/csa_timetable.h"
 
 namespace motis::csa {
@@ -19,6 +20,11 @@ struct csa_journey {
         destination_station_(destination_station) {}
 
   bool is_reconstructed() const { return !edges_.empty(); }
+
+  bool operator < (csa_journey const& other){
+      return this->journey_begin() < other.journey_begin() ||
+             (this->journey_begin() == other.journey_begin() && this->journey_end() < other.journey_end());
+  }
 
   csa_station const* departure_station() const {
     return dir_ == search_dir::FWD ? start_station_ : destination_station_;
@@ -51,6 +57,12 @@ struct csa_journey {
           mumo_price_(mumo_price),
           mumo_accessibility_(mumo_accessibility) {}
 
+    friend bool operator==(csa_edge const& a,csa_edge const& b){
+      return std::tie(a.departure_, a.arrival_, a.to_, a.from_,a.con_) ==
+             std::tie(b.departure_,b.arrival_,b.to_,b.from_,b.con_);
+    }
+
+
     bool is_connection() const { return con_ != nullptr; }
     bool is_walk() const { return con_ == nullptr; }
     int duration() const { return arrival_ - departure_; }
@@ -66,6 +78,7 @@ struct csa_journey {
     unsigned mumo_price_{0};
     unsigned mumo_accessibility_{0};
   };
+
 
   friend std::ostream& operator<<(std::ostream& out, csa_journey const& j) {
     out << "{ ";

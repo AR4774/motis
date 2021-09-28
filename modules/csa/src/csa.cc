@@ -1,19 +1,28 @@
 #include "motis/csa/csa.h"
+#include <motis/csa/cpu/csa_alternative_profile_search_default_cpu.h>
+
 
 #include "motis/core/access/time_access.h"
 #include "motis/core/journey/journeys_to_message.h"
 #include "motis/module/context/get_schedule.h"
 
 #include "motis/csa/build_csa_timetable.h"
+#include "motis/csa/csa_to_journey.h"
+#include "motis/csa/pretrip_alternative.h"
+#include "motis/csa/cpu/csa_search_default_cpu.h"
+
+
 #include "motis/csa/csa_query.h"
 #include "motis/csa/csa_statistics.h"
 #include "motis/csa/csa_timetable.h"
-#include "motis/csa/csa_to_journey.h"
 #include "motis/csa/error.h"
 #include "motis/csa/run_csa_search.h"
 
+#include "motis/csa/csa_alternative_search.h"
+
 using namespace motis::module;
 using namespace motis::routing;
+using namespace motis::csa::cpu;
 
 namespace motis::csa {
 
@@ -36,6 +45,9 @@ void csa::init(motis::module::registry& reg) {
 #else
     return route(msg, implementation_type::CPU);
 #endif
+  });
+  reg.register_op("/csa/alternative/cpu", [&](msg_ptr const& msg) {
+    return route(msg, implementation_type::CPU, false, true);
   });
   reg.register_op("/csa/cpu", [&](msg_ptr const& msg) {
     return route(msg, implementation_type::CPU);
@@ -61,12 +73,19 @@ csa_timetable const* csa::get_timetable() const { return timetable_.get(); }
 
 motis::module::msg_ptr csa::route(motis::module::msg_ptr const& msg,
                                   implementation_type impl_type,
-                                  bool use_profile_search) const {
+                                  bool use_profile_search,
+                                  bool use_alternative_search) const {
   auto const req = motis_content(RoutingRequest, msg);
   auto const& sched = get_schedule();
+
   auto const response =
-      run_csa_search(sched, *timetable_, csa_query(sched, req),
-                     req->search_type(), impl_type, use_profile_search);
+      use_alternative_search
+          ? csa_alternative_search{}.alternative_search(sched, *timetable_, csa_query(sched, req),
+                                    req->search_type(), impl_type,
+                                    use_profile_search)
+          : run_csa_search(sched, *timetable_, csa_query(sched, req),
+                           req->search_type(), impl_type, use_profile_search);
+
   message_creator mc;
   mc.create_and_finish(
       MsgContent_RoutingResponse,
@@ -86,4 +105,5 @@ motis::module::msg_ptr csa::route(motis::module::msg_ptr const& msg,
   return make_msg(mc);
 }
 
-}  // namespace motis::csa
+
+}

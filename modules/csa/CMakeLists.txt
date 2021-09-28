@@ -4,7 +4,7 @@ project(motis)
 include_directories(include)
 
 file(GLOB_RECURSE motis-csa-files src/*.cc)
-add_library(motis-csa STATIC ${motis-csa-files})
+add_library(motis-csa STATIC ${motis-csa-files} include/motis/csa/csa_alternative_search.h)
 target_include_directories(motis-csa PUBLIC include)
 target_compile_features(motis-csa PUBLIC cxx_std_17)
 target_link_libraries(motis-csa
@@ -17,7 +17,7 @@ target_compile_options(motis-csa PRIVATE ${MOTIS_CXX_FLAGS})
 target_compile_definitions(motis-csa PRIVATE ${MOTIS_COMPILE_DEFINITIONS})
 
 if (MOTIS_CUDA)
-  add_library(gpucsa SHARED src/gpu/gpu_csa.cu)
+  add_library(gpucsa SHARED src/gpu/gpu_csa.cu include/motis/csa/pretrip_alternative.h include/motis/csa/cpu/csa_alternative_profile_search_default_cpu.h include/motis/csa/cpu/csa_alternative_base_search.h include/motis/csa/csa_alternative_search.h)
   set_target_properties(gpucsa PROPERTIES
       WINDOWS_EXPORT_ALL_SYMBOLS ON
       CUDA_SEPARABLE_COMPILATION ON

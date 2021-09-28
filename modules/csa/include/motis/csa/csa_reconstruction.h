@@ -56,6 +56,34 @@ struct csa_reconstruction {
     return start_times_.find(station) != end(start_times_);
   }
 
+  std::vector<journey_pointer> journey_pointer_correction(std::vector<journey_pointer>& journey_pointers, const csa_station *destination_station ,int transfers, int top_transfers){
+    std::vector<journey_pointer> journey_pointers_corrected;
+    for(auto& jp : journey_pointers){
+      if(jp.valid()){
+        if (transfers == top_transfers &&
+            jp.footpath_->from_station_ != jp.footpath_->to_station_) {
+          auto const con_arr_jps =
+              look_for_conn_arrivals_within_transfer_time(destination_station, transfers);
+          auto valid = 0;
+          for(auto const& con_arr_jp : con_arr_jps){
+            if(con_arr_jp.valid()){
+              valid++;
+              journey_pointers_corrected.emplace_back(con_arr_jp);
+            }
+          }
+          if(valid == 0){
+            journey_pointers_corrected.emplace_back(jp);
+          }
+        }else{
+          journey_pointers_corrected.emplace_back(jp);
+        }
+      }else{
+        journey_pointers_corrected.emplace_back(jp);
+      }
+    }
+    return journey_pointers_corrected;
+  }
+
   void extract_equivalent_journeys(time start_time, time arrival_time,
                                    unsigned transfers, csa_station const* destination_station,
                                    std::vector<csa_journey>& journey_list){
@@ -73,45 +101,24 @@ struct csa_reconstruction {
 
     std::vector<csa_journey> result;
     if(transfers == 0){
+ //     std::cout << "transfers " << destination_station->station_ptr_->name_ << "0\n";
       csa_journey j = {Dir,start_time,arrival_time, top_transfers,destination_station};
       j.start_station_ = destination_station;
+
       if (!is_start(destination_station->id_)) {
         add_final_footpath(j, destination_station, transfers);
       }
       result.emplace_back(j);
       return result;
     }
-
     auto journey_pointers = get_journey_pointers(*destination_station, transfers);
-    std::vector<journey_pointer> journey_pointers_corrected;
+    auto journey_pointers_corrected = journey_pointer_correction(journey_pointers, destination_station, transfers, top_transfers);
 
-    for(auto& jp : journey_pointers){
+
+    for(journey_pointer const& jp : journey_pointers_corrected){
+ //     std::cout << "jp with transfers " << transfers << " from " << tt_.stations_[jp.enter_con_->from_station_].station_ptr_->name_ << " to " << tt_.stations_[jp.exit_con_->to_station_].station_ptr_->name_ << "\n";
+
       if(jp.valid()){
-        if (transfers == top_transfers &&
-            jp.footpath_->from_station_ != jp.footpath_->to_station_) {
-          auto const con_arr_jps =
-              look_for_conn_arrivals_within_transfer_time(destination_station, transfers);
-          auto valid = 0;
-          for(auto& con_arr_jp : con_arr_jps){
-            if(con_arr_jp.valid()){
-              valid++;
-              journey_pointers_corrected.emplace_back(con_arr_jp);
-            }
-          }
-          if(valid == 0){
-            journey_pointers_corrected.emplace_back(jp);
-          }
-        }else{
-          journey_pointers_corrected.emplace_back(jp);
-        }
-      }else{
-        journey_pointers_corrected.emplace_back(jp);
-      }
-    }
-
-    for(const auto& jp : journey_pointers_corrected){
-      if(jp.valid()){
-
         auto cur_list = Dir == search_dir::FWD ? extract_journey_recursion(
             start_time,jp.enter_con_->departure_, transfers-1,&tt_.stations_[jp.enter_con_->from_station_],top_transfers)
             : extract_journey_recursion(
@@ -173,27 +180,35 @@ struct csa_reconstruction {
                   &tt_.stations_[jp.footpath_->to_station_],
                   jp.enter_con_->departure_ - jp.footpath_->duration_,
                   jp.enter_con_->departure_, -1);
-              j.start_station_ = &tt_.stations_[jp.footpath_->from_station_];
-              j.start_time_ = jp.enter_con_->departure_ - jp.footpath_->duration_;
             }
           }
-          result.push_back(j);
-        }
-      }else{
-        if (!is_start(destination_station->id_)) {
-          if (transfers != 0) {
-            LOG(motis::logging::warn)
-                << "csa extract journey: adding final footpath "
-                   "with transfers="
-                << transfers;
+          if(Dir == search_dir::FWD){
+            j.destination_station_ = destination_station;
+            j.arrival_time_ = arrival_time;
+          }else{
+            j.destination_station_ = &tt_.stations_[jp.footpath_->from_station_];
+            j.start_time_ = jp.enter_con_->departure_ - jp.footpath_->duration_;
           }
-          csa_journey j = {Dir,start_time,arrival_time,transfers,destination_station};
-          add_final_footpath(j, destination_station, transfers);
           result.push_back(j);
         }
+      }else {
+      if (!is_start(destination_station->id_)) {
+        if (transfers != 0) {
+          LOG(motis::logging::warn)
+              << "csa extract journey: adding final footpath "
+                 "with transfers="
+              << transfers;
+        }
+ //       std::cout << "final footpath " << destination_station->station_ptr_->name_ << "0\n";
 
+        csa_journey j = {Dir, start_time, arrival_time, transfers,
+                         destination_station};
+        add_final_footpath(j, destination_station, transfers);
+        result.push_back(j);
+      }
       }
     }
+
     return result;
   }
 
@@ -206,6 +221,7 @@ struct csa_reconstruction {
     auto stop = j.destination_station_;
     auto transfers = j.transfers_;
     for (; transfers > 0; --transfers) {
+
       auto jp = get_journey_pointer(*stop, transfers);
       if (jp.valid()) {
         if (transfers == j.transfers_ &&
@@ -454,10 +470,13 @@ struct csa_reconstruction {
         for (auto const& enter_con : get_enter_candidates(
                  fp_arr_stop, station_arrival + fp.duration_, transfers)) {
           auto const& trip_cons = tt_.trip_to_connections_[enter_con->trip_];
+          std::cout << fp_arr_stop.station_ptr_->name_ << " \n";
+
           for (auto i = static_cast<int>(trip_cons.size()) - 1; i >= 0; --i) {
             auto const& exit_con = trip_cons[i];
             auto const exit_arrival =
                 arrival_time_[exit_con->to_station_][transfers - 1];
+
             if (exit_arrival != INVALID && exit_arrival >= exit_con->arrival_ &&
                 exit_con->to_out_allowed_) {
               return {enter_con, exit_con, &fp};
@@ -469,6 +488,7 @@ struct csa_reconstruction {
         }
       }
     }
+
     return {};
   }
 

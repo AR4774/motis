@@ -15,12 +15,12 @@
 #include "motis/core/common/logging.h"
 #include "motis/core/schedule/edges.h"
 
-#include "motis/tripbased/data.h"
-#include "motis/tripbased/tb_journey.h"
-#include "motis/tripbased/tb_search_common.h"
-#include "motis/tripbased/tb_statistics.h"
+#include "data.h"
+#include "tb_journey.h"
+#include "tb_search_common.h"
+#include "tb_statistics.h"
 
-#include "motis/tripbased/limits.h"
+#include "limits.h"
 
 namespace motis::tripbased {
 

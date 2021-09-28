@@ -35,7 +35,7 @@ target_compile_options(motis-analyzer PRIVATE ${MOTIS_CXX_FLAGS})
 set_target_properties(motis-analyzer PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 
 file(GLOB_RECURSE motis-comparator-files eval/src/result_comparator.cc)
-add_executable(motis-comparator EXCLUDE_FROM_ALL ${motis-comparator-files})
+add_executable(motis-comparator EXCLUDE_FROM_ALL ${motis-comparator-files} ../csa/include/motis/csa/pretrip_alternative.h)
 target_compile_features(motis-comparator PUBLIC cxx_std_17)
 target_link_libraries(motis-comparator conf motis-module motis-core ${CMAKE_THREAD_LIBS_INIT})
 target_compile_options(motis-comparator PRIVATE ${MOTIS_CXX_FLAGS})
