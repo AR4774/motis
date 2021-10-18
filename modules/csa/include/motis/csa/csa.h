@@ -1,7 +1,7 @@
 #pragma once
 
-#include "motis/csa/cpu/csa_alternative_base_search.h"
 #include "motis/module/module.h"
+#include "motis/csa/cpu/csa_alternative_base_search.h"
 
 #include "motis/csa/csa_implementation_type.h"
 #include "../../../../tripbased/include/motis/tripbased/tb_profile_search.h"
@@ -34,7 +34,8 @@ struct csa : public motis::module::module {
 
   motis::module::msg_ptr route(motis::module::msg_ptr const&,
                                implementation_type,
-                               bool use_profile_search = false, bool use_alternative_search = false) const;
+                               bool use_profile_search = false,
+                               bool use_alternative_search = false) const;
 
 #ifdef MOTIS_CUDA
   bool bridge_zero_duration_connections_{true};
@@ -44,7 +45,6 @@ struct csa : public motis::module::module {
   bool add_footpath_connections_{false};
 #endif
   std::unique_ptr<csa_timetable> timetable_;
-
 };
 
 }  // namespace motis::csa

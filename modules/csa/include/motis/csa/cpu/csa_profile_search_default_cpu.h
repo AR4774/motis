@@ -26,7 +26,7 @@ struct csa_profile_search {
       : tt_{tt}, search_interval_{search_interval}, stats_{stats} {}
 
   void add_start(csa_station const& station, time initial_duration) {
-    // Ready for departure at station at time:
+    // Ready for departure at station at time:w
     // start time + initial_duration (Dir == search_dir::FWD)
     // start time - initial_duration (Dir == search_dir::BWD)
     stats_.start_count_++;

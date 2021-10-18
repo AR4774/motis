@@ -21,14 +21,13 @@
 namespace motis::csa::cpu::alternative {
 
 template <search_dir Dir>
-struct csa_search : base_search<Dir>{
+struct csa_search : base_search<Dir> {
   static constexpr auto INVALID = Dir == search_dir::FWD
                                       ? std::numeric_limits<time>::max()
                                       : std::numeric_limits<time>::min();
 
-  csa_search(csa_timetable const& tt, time start_time, csa_statistics& stats) : start_time_(start_time), base_search<Dir>(tt,stats){
-    std::cout << "CONSTRUCTOR OF CSA SEARCH\n";
-  }
+  csa_search(csa_timetable const& tt, time start_time, csa_statistics& stats)
+      : start_time_(start_time), base_search<Dir>(tt, stats) {}
 
   void add_start(csa_station const& station, time initial_duration) {
     auto const station_arrival = Dir == search_dir::FWD
@@ -41,8 +40,9 @@ struct csa_search : base_search<Dir>{
   }
 
   void search() {
-    auto const& connections =
-        Dir == search_dir::FWD ? this->tt_.fwd_connections_ : this->tt_.bwd_connections_;
+    auto const& connections = Dir == search_dir::FWD
+                                  ? this->tt_.fwd_connections_
+                                  : this->tt_.bwd_connections_;
 
     csa_connection const start_at{start_time_};
     auto const first_connection = std::lower_bound(
@@ -95,11 +95,11 @@ struct csa_search : base_search<Dir>{
           if (update) {
             this->stats_.footpaths_expanded_++;
             if (Dir == search_dir::FWD) {
-              expand_footpaths(this->tt_.stations_[con.to_station_], con.arrival_,
-                               transfers + 1);
+              expand_footpaths(this->tt_.stations_[con.to_station_],
+                               con.arrival_, transfers + 1);
             } else {
-              expand_footpaths(this->tt_.stations_[con.from_station_], con.departure_,
-                               transfers + 1);
+              expand_footpaths(this->tt_.stations_[con.from_station_],
+                               con.departure_, transfers + 1);
             }
           }
         }
@@ -126,38 +126,35 @@ struct csa_search : base_search<Dir>{
     }
   }
 
-  std::vector<csa_journey>  get_results(csa_station const& station,
+  std::vector<csa_journey> get_results(csa_station const& station,
                                        bool include_equivalent) override {
-/*    utl::verify_ex(!include_equivalent,
-                   std::system_error{error::include_equivalent_not_supported});*/
 
     std::vector<csa_journey> journeys;
     auto const& station_arrival = this->arrival_time_[station.id_];
     for (auto i = 0; i <= LOCAL_MAX_TRANSFERS; ++i) {
       auto const arrival_time = station_arrival[i];  // NOLINT
       if (arrival_time != INVALID) {
-        if(include_equivalent){
+        if (include_equivalent) {
           csa_reconstruction<Dir, decltype(this->arrival_time_),
-              decltype(this->trip_reachable_)>{
-              this->tt_, this->start_times_, this->arrival_time_, this->trip_reachable_}
-              .extract_equivalent_journeys(start_time_,
-                                                     arrival_time, i, &station, journeys);
-        }else {
+                             decltype(this->trip_reachable_)>{
+              this->tt_, this->start_times_, this->arrival_time_,
+              this->trip_reachable_}
+              .extract_equivalent_journeys(start_time_, arrival_time, i,
+                                           &station, journeys);
+        } else {
           csa_reconstruction<Dir, decltype(this->arrival_time_),
-              decltype(this->trip_reachable_)>{
-              this->tt_, this->start_times_, this->arrival_time_, this->trip_reachable_}
-              .extract_journey(journeys.emplace_back(Dir, start_time_,
-                                                     arrival_time, i, &station));
+                             decltype(this->trip_reachable_)>{
+              this->tt_, this->start_times_, this->arrival_time_,
+              this->trip_reachable_}
+              .extract_journey(journeys.emplace_back(
+                  Dir, start_time_, arrival_time, i, &station));
         }
       }
     }
-
-    std::cout << "Journey size of " << journeys.size() << " \n";
     return journeys;
   }
 
   time start_time_;
-
 };
 
 }  // namespace motis::csa::cpu::alternative

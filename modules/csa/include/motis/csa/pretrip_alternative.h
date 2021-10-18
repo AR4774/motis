@@ -7,40 +7,37 @@
 #include "motis/core/schedule/schedule.h"
 
 #include "motis/csa/collect_start_times.h"
+#include "motis/csa/cpu/csa_alternative_profile_search_default_cpu.h"
+#include "motis/csa/cpu/csa_alternative_search_default_cpu.h"
 #include "motis/csa/csa_query.h"
 #include "motis/csa/csa_statistics.h"
 #include "motis/csa/csa_timetable.h"
 #include "motis/csa/pareto_set.h"
 #include "motis/csa/response.h"
 #include "csa_search_shared.h"
-#include "motis/csa/cpu/csa_alternative_search_default_cpu.h"
-#include "motis/csa/cpu/csa_alternative_profile_search_default_cpu.h"
 
 namespace motis::csa {
 
 template <typename SearchStrategy, search_dir Dir>
 struct pretrip_alternative : public SearchStrategy {
-  pretrip_alternative(schedule const& sched, csa_timetable const& tt, csa_query const& q,
-          csa_statistics& stats)
+  pretrip_alternative(schedule const& sched, csa_timetable const& tt,
+                      csa_query const& q, csa_statistics& stats)
       : SearchStrategy{sched, tt, q, stats},
         schedule_begin_{SCHEDULE_OFFSET_MINUTES},
         schedule_end_{static_cast<motis::time>(
-                          (sched.schedule_end_ - sched.schedule_begin_) / 60)} {}
+            (sched.schedule_end_ - sched.schedule_begin_) / 60)} {}
 
   std::vector<std::unique_ptr<cpu::alternative::base_search<Dir>>> search() {
-    MOTIS_START_TIMING(total_timing);
-
     static_cast<SearchStrategy*>(this)->search_in_interval(
         results_, search_interval_, true);
     while (!min_connection_count_reached() && !max_interval_reached()) {
-      std::cout << "NEW INTERVAL\n";
       auto const extended_search_interval =
           interval{query().extend_interval_earlier_
-                   ? map_to_interval(search_interval_.begin_ - 60)
-                   : search_interval_.begin_,
+                       ? map_to_interval(search_interval_.begin_ - 60)
+                       : search_interval_.begin_,
                    query().extend_interval_later_  //
-                   ? map_to_interval(search_interval_.end_ + 60)
-                   : search_interval_.end_};
+                       ? map_to_interval(search_interval_.end_ + 60)
+                       : search_interval_.end_};
 
       if (extended_search_interval.begin_ != search_interval_.begin_) {
         static_cast<SearchStrategy*>(this)->search_in_interval(
@@ -61,9 +58,6 @@ struct pretrip_alternative : public SearchStrategy {
       search_interval_ = extended_search_interval;
     }
 
-    MOTIS_STOP_TIMING(total_timing);
-    stats().total_duration_ = MOTIS_TIMING_MS(total_timing);
-
     return std::move(results_);
   }
 
@@ -79,7 +73,6 @@ private:
   }
 
   bool min_connection_count_reached() const {
-    //Todo; ???
     return false;
     /*
     return std::count_if(begin(results_), end(results_),
@@ -90,18 +83,6 @@ private:
   }
 
   bool max_interval_reached() const {
-    std::cout << ((!query().extend_interval_earlier_ ||
-                  search_interval_.begin_ == schedule_begin_) &&
-    (!query().extend_interval_later_ ||  //
-     search_interval_.end_ == schedule_end_)) << "\n";
-
-    std::cout << schedule_end_ << "\n";
-    std::cout << (query().extend_interval_earlier_) << "\n";
-    std::cout << (query().extend_interval_later_) << "\n";
-
-    std::cout << (search_interval_.begin_ == schedule_begin_) << "\n";
-    std::cout << (search_interval_.end_ == schedule_end_) << "\n";
-
 
     return (!query().extend_interval_earlier_ ||
             search_interval_.begin_ == schedule_begin_) &&
@@ -125,8 +106,10 @@ private:
 
 template <typename CSASearch>
 struct pretrip_iterated_ontrip_alternative_search {
-  pretrip_iterated_ontrip_alternative_search(schedule const& sched, csa_timetable const& tt,
-                                 csa_query const& q, csa_statistics& stats)
+  pretrip_iterated_ontrip_alternative_search(schedule const& sched,
+                                             csa_timetable const& tt,
+                                             csa_query const& q,
+                                             csa_statistics& stats)
       : sched_{sched}, tt_{tt}, q_{q}, stats_{stats} {}
 
   template <typename Results>
@@ -135,25 +118,17 @@ struct pretrip_iterated_ontrip_alternative_search {
 
     auto const start_times =
         collect_start_times(tt_, q_, search_interval, ontrip_at_interval_end);
-
-    std::cout << "SIZE OF START TIMES" << start_times.size() << "\n";
-
     for (auto const& start_time : start_times) {
       CSASearch csa{tt_, start_time, stats_};
       for (auto const& start_idx : q_.meta_starts_) {
         csa.add_start(tt_.stations_.at(start_idx), 0);
       }
 
-//      MOTIS_START_TIMING(search_timing);
       csa.search();
-//      MOTIS_STOP_TIMING(search_timing);
 
-
-      std::cout << "PUSH BACK CSA RESULT \n";
       results.push_back(std::make_unique<CSASearch>(csa));
     }
   }
-
 
   schedule const& sched_;
   csa_timetable const& tt_;
@@ -163,8 +138,9 @@ struct pretrip_iterated_ontrip_alternative_search {
 
 template <typename CSAProfileSearch, typename CSAOnTripSearch>
 struct pretrip_profile_alternative_search {
-  pretrip_profile_alternative_search(schedule const& sched, csa_timetable const& tt,
-                         csa_query const& q, csa_statistics& stats)
+  pretrip_profile_alternative_search(schedule const& sched,
+                                     csa_timetable const& tt,
+                                     csa_query const& q, csa_statistics& stats)
       : sched_{sched}, tt_{tt}, q_{q}, stats_{stats} {}
 
   template <typename Results>
@@ -190,7 +166,6 @@ struct pretrip_profile_alternative_search {
 
     results.push_back(std::make_unique<CSASearch>(csa));
   }
-
 
   schedule const& sched_;
   csa_timetable const& tt_;

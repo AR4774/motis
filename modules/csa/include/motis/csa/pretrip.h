@@ -27,8 +27,6 @@ struct pretrip : public SearchStrategy {
   response search() {
     MOTIS_START_TIMING(total_timing);
 
-    std::cout << "SEARCHING \n";
-
     static_cast<SearchStrategy*>(this)->search_in_interval(
         results_, search_interval_, true);
     while (!min_connection_count_reached() && !max_interval_reached()) {
@@ -59,9 +57,8 @@ struct pretrip : public SearchStrategy {
       search_interval_ = extended_search_interval;
     }
 
-    // TODO: Decomment again !!!
-    //utl::erase_if(results_.set_,
-    //              [&](csa_journey const& j) { return !in_interval(j); });
+    utl::erase_if(results_.set_,
+                  [&](csa_journey const& j) { return !in_interval(j); });
 
     MOTIS_STOP_TIMING(total_timing);
     stats().total_duration_ = MOTIS_TIMING_MS(total_timing);
@@ -76,9 +73,9 @@ private:
   }
 
   bool in_interval(csa_journey const& j) const {
-    std::cout << "begin " << j.journey_begin() << " a " << search_interval_.begin_<< " b " << search_interval_.end_ << "\n";
-    return j.journey_begin() >= search_interval_.begin_ &&
-           j.journey_begin() <= search_interval_.end_;
+    auto const begin =
+        j.dir_ == search_dir::FWD ? j.journey_begin() : j.journey_end();
+    return begin >= search_interval_.begin_ && begin <= search_interval_.end_;
   }
 
   bool min_connection_count_reached() const {
@@ -142,13 +139,11 @@ struct pretrip_iterated_ontrip_search {
   template <typename Results>
   void collect_results(CSASearch& csa, Results& results) {
     for (auto const& dest_idx : q_.meta_dests_) {
-      std::cout << "New Result \n";
       for (csa_journey& j : csa.get_results(tt_.stations_.at(dest_idx),
                                             q_.include_equivalent_)) {
         if (j.duration() <= MAX_TRAVEL_TIME) {
           results.push_back(j);
-        }else{
-          std::cout << "Larger travel time max  " << j.transfers_ << " \n";
+        } else {
         }
       }
     }

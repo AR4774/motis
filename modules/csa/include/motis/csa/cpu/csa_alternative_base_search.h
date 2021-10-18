@@ -33,8 +33,6 @@ const duration LOCAL_MAX_TRANSFERS = 3;
 
     virtual std::vector<csa_journey>  get_results(csa_station const& station,
                                                   bool include_equivalent){
-      std::cout << "Journey size of " << " \n";
-
       return std::vector<csa_journey>();
     };
 

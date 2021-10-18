@@ -21,9 +21,17 @@ struct csa_journey {
 
   bool is_reconstructed() const { return !edges_.empty(); }
 
-  bool operator < (csa_journey const& other){
-      return this->journey_begin() < other.journey_begin() ||
-             (this->journey_begin() == other.journey_begin() && this->journey_end() < other.journey_end());
+  bool operator<(csa_journey const& other) const {
+    if (this->edges_.size() < other.edges_.size()) {
+      return true;
+    }
+    auto s = other.edges_.size();
+    for (int i = 0; i < s; ++i) {
+      if (this->edges_.at(i) < other.edges_.at(i)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   csa_station const* departure_station() const {
@@ -57,11 +65,15 @@ struct csa_journey {
           mumo_price_(mumo_price),
           mumo_accessibility_(mumo_accessibility) {}
 
-    friend bool operator==(csa_edge const& a,csa_edge const& b){
-      return std::tie(a.departure_, a.arrival_, a.to_, a.from_,a.con_) ==
-             std::tie(b.departure_,b.arrival_,b.to_,b.from_,b.con_);
+    friend bool operator==(csa_edge const& a, csa_edge const& b) {
+      return std::tie(a.departure_, a.arrival_, a.to_, a.from_, a.con_) ==
+             std::tie(b.departure_, b.arrival_, b.to_, b.from_, b.con_);
     }
 
+    friend bool operator<(csa_edge const& a, csa_edge const& b) {
+      return std::tie(a.departure_, a.arrival_, a.to_->id_, a.from_->id_) <
+             std::tie(b.departure_, b.arrival_, b.to_->id_, b.from_->id_);
+    }
 
     bool is_connection() const { return con_ != nullptr; }
     bool is_walk() const { return con_ == nullptr; }
@@ -78,7 +90,6 @@ struct csa_journey {
     unsigned mumo_price_{0};
     unsigned mumo_accessibility_{0};
   };
-
 
   friend std::ostream& operator<<(std::ostream& out, csa_journey const& j) {
     out << "{ ";

@@ -7,23 +7,23 @@
 
 #include "motis/core/schedule/interval.h"
 
+#include "motis/csa/cpu/csa_alternative_base_search.h"
 #include "motis/csa/csa_journey.h"
 #include "motis/csa/csa_search_shared.h"
 #include "motis/csa/csa_statistics.h"
 #include "motis/csa/csa_timetable.h"
 #include "motis/csa/error.h"
-#include "motis/csa/cpu/csa_alternative_base_search.h"
 
 namespace motis::csa::cpu::alternative {
 template <search_dir Dir>
-struct csa_profile_search : base_search<Dir>{
+struct csa_profile_search : base_search<Dir> {
   static constexpr auto INVALID = Dir == search_dir::FWD
-                                  ? std::numeric_limits<time>::max()
-                                  : std::numeric_limits<time>::min();
+                                      ? std::numeric_limits<time>::max()
+                                      : std::numeric_limits<time>::min();
 
   csa_profile_search(csa_timetable const& tt, interval const& search_interval,
-      csa_statistics& stats): search_interval_{search_interval}, base_search<Dir>(tt,stats){
-  }
+                     csa_statistics& stats)
+      : search_interval_{search_interval}, base_search<Dir>(tt, stats) {}
 
   void add_start(csa_station const& station, time initial_duration) {
     // Ready for departure at station at time:
@@ -36,8 +36,9 @@ struct csa_profile_search : base_search<Dir>{
   }
 
   void search() {
-    auto const& connections =
-        Dir == search_dir::FWD ? this->tt_.fwd_connections_ : this->tt_.bwd_connections_;
+    auto const& connections = Dir == search_dir::FWD
+                                  ? this->tt_.fwd_connections_
+                                  : this->tt_.bwd_connections_;
 
     (void)connections;
   }
@@ -54,4 +55,4 @@ struct csa_profile_search : base_search<Dir>{
   interval search_interval_;
 };
 
-}//namespace motis::csa::cpu::alternative
+}  // namespace motis::csa::cpu::alternative

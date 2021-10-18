@@ -132,31 +132,26 @@ struct csa_search {
 
   std::vector<csa_journey> get_results(csa_station const& station,
                                        bool include_equivalent) {
-/*    utl::verify_ex(!include_equivalent,
-                   std::system_error{error::include_equivalent_not_supported});*/
+    /*    utl::verify_ex(!include_equivalent,
+                       std::system_error{error::include_equivalent_not_supported});*/
 
     std::vector<csa_journey> journeys;
     auto const& station_arrival = arrival_time_[station.id_];
     for (auto i = 0; i <= MAX_TRANSFERS; ++i) {
       auto const arrival_time = station_arrival[i];  // NOLINT
       if (arrival_time != INVALID) {
-        std::cout << "TRANSFER COUNT " << i << "\n";
-
-        if(include_equivalent){
-          std::cout << "INCLUDE EQUIVALENT\n";
-
+        if (include_equivalent) {
           csa_reconstruction<Dir, decltype(arrival_time_),
-              decltype(trip_reachable_)>{
+                             decltype(trip_reachable_)>{
               tt_, start_times_, arrival_time_, trip_reachable_}
-              .extract_equivalent_journeys(start_time_,
-                                                     arrival_time, i, &station, journeys);
-        }else {
-          std::cout << "DONT INCLUDE EQUIVALENT\n";
+              .extract_equivalent_journeys(start_time_, arrival_time, i,
+                                           &station, journeys);
+        } else {
           csa_reconstruction<Dir, decltype(arrival_time_),
-              decltype(trip_reachable_)>{
+                             decltype(trip_reachable_)>{
               tt_, start_times_, arrival_time_, trip_reachable_}
-              .extract_journey(journeys.emplace_back(Dir, start_time_,
-                                                     arrival_time, i, &station));
+              .extract_journey(journeys.emplace_back(
+                  Dir, start_time_, arrival_time, i, &station));
         }
       }
     }
