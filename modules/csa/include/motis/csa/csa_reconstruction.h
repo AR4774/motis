@@ -133,8 +133,8 @@ struct csa_reconstruction {
                 : extract_journey_recursion(
                       start_time, jp.exit_con_->arrival_, transfers - 1,
                       &tt_.stations_[jp.exit_con_->to_station_], top_transfers);
+        assert(jp.enter_con_->trip_ == jp.exit_con_->trip_);
         for (auto& j : cur_list) {
-          assert(jp.enter_con_->trip_ == jp.exit_con_->trip_);
           auto const& trip_cons = tt_.trip_to_connections_[jp.exit_con_->trip_];
           auto const add_trip_edge = [&](csa_connection const* con) {
             auto const enter = con == jp.enter_con_;
@@ -408,6 +408,7 @@ struct csa_reconstruction {
                     enter_con->departure_ &&
                 enter_con->from_in_allowed_) {
               result.emplace_back(enter_con, exit_con, &fp);
+              break;
             }
             if (enter_con == exit_con) {
               break;
@@ -428,6 +429,7 @@ struct csa_reconstruction {
             if (exit_arrival != INVALID && exit_arrival >= exit_con->arrival_ &&
                 exit_con->to_out_allowed_) {
               result.emplace_back(enter_con, exit_con, &fp);
+              break;
             }
             if (exit_con == enter_con) {
               break;
