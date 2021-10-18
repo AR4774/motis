@@ -2,9 +2,9 @@ name: Windows Build
 
 on:
   push:
-    branches: [ master, algoprak-ss21-csa ]
+    branches: [ master , algoprak-ss21-csa ]
   pull_request:
-    branches: [ master, algoprak-ss21-csa]
+    branches: [ master , algoprak-ss21-csa]
   release:
     types:
       - published
