@@ -14,23 +14,23 @@
 namespace motis::csa {
 struct csa_alternative_search {
   static void cap_journey_list(std::vector<csa_journey>& result, int cap_size) {
-      sort(begin(result), end(result));
-      auto last =
-          std::unique(begin(result), end(result),
-                      [](csa_journey const& a, csa_journey const& b) {
-                        auto ab = a.journey_begin();
-                        auto ae = a.journey_end();
-                        auto bb = b.journey_begin();
-                        auto be = b.journey_end();
-                        return std::tie(ab, ae, a.start_station_,
-                                        a.destination_station_, a.edges_) ==
-                               std::tie(bb, be, b.start_station_,
-                                        b.destination_station_, b.edges_);
-                      });
-      result.erase(last, end(result));
-      if (result.size() > cap_size) {
-        result.resize(cap_size);
-      }
+    sort(begin(result), end(result));
+    auto last =
+        std::unique(begin(result), end(result),
+                    [](csa_journey const& a, csa_journey const& b) {
+                      auto ab = a.journey_begin();
+                      auto ae = a.journey_end();
+                      auto bb = b.journey_begin();
+                      auto be = b.journey_end();
+                      return std::tie(ab, ae, a.start_station_,
+                                      a.destination_station_, a.edges_) ==
+                             std::tie(bb, be, b.start_station_,
+                                      b.destination_station_, b.edges_);
+                    });
+    result.erase(last, end(result));
+    if (result.size() > cap_size) {
+      result.resize(cap_size);
+    }
   }
 
   response alternative_search(schedule const& sched, csa_timetable const& tt,
