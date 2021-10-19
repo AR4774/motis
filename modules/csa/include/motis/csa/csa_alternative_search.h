@@ -184,8 +184,14 @@ struct csa_alternative_search {
         journeys.emplace_back();
         continue;
       }
-
-      auto cur_journeys = csa_searches[k]->get_results(station, true);
+      pareto_set<csa_journey, decltype(&dominates)> p_set{
+          make_pareto_set<csa_journey>(&dominates)};
+      for (csa_journey& j : csa_searches[k]->get_results(station, true)) {
+        if (j.duration() <= MAX_TRAVEL_TIME) {
+          p_set.push_back(j);
+        }
+      }
+      auto cur_journeys = p_set.set_;
       auto is_dir_fwd = Dir == search_dir::FWD;
       auto targets = q.meta_starts_;
 
@@ -238,6 +244,17 @@ private:
     auto const begin =
         j.dir_ == search_dir::FWD ? j.journey_begin() : j.journey_end();
     return begin >= search_interval.begin_ && begin <= search_interval.end_;
+  }
+  static bool dominates(csa_journey const& a, csa_journey const& b) {
+    return a.journey_begin() >= b.journey_begin() &&
+               a.journey_end() <= b.journey_end() &&
+               a.transfers_ < b.transfers_ ||
+           a.journey_begin() >= b.journey_begin() &&
+               a.journey_end() < b.journey_end() &&
+               a.transfers_ <= b.transfers_ ||
+           a.journey_begin() > b.journey_begin() &&
+               a.journey_end() <= b.journey_end() &&
+               a.transfers_ <= b.transfers_;
   }
 };
 

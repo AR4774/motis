@@ -59,6 +59,20 @@ struct pretrip : public SearchStrategy {
 
     utl::erase_if(results_.set_,
                   [&](csa_journey const& j) { return !in_interval(j); });
+    sort(begin(results_.set_), end(results_.set_));
+    auto last =
+        std::unique(begin(results_.set_), end(results_.set_),
+                    [](csa_journey const& a, csa_journey const& b) {
+                      auto ab = a.journey_begin();
+                      auto ae = a.journey_end();
+                      auto bb = b.journey_begin();
+                      auto be = b.journey_end();
+                      return std::tie(ab, ae, a.start_station_,
+                                      a.destination_station_, a.edges_) ==
+                             std::tie(bb, be, b.start_station_,
+                                      b.destination_station_, b.edges_);
+                    });
+    results_.set_.erase(last, end(results_.set_));
 
     MOTIS_STOP_TIMING(total_timing);
     stats().total_duration_ = MOTIS_TIMING_MS(total_timing);
@@ -69,7 +83,14 @@ struct pretrip : public SearchStrategy {
 private:
   static bool dominates(csa_journey const& a, csa_journey const& b) {
     return a.journey_begin() >= b.journey_begin() &&
-           a.journey_end() <= b.journey_end() && a.transfers_ <= b.transfers_;
+               a.journey_end() <= b.journey_end() &&
+               a.transfers_ < b.transfers_ ||
+           a.journey_begin() >= b.journey_begin() &&
+               a.journey_end() < b.journey_end() &&
+               a.transfers_ <= b.transfers_ ||
+           a.journey_begin() > b.journey_begin() &&
+               a.journey_end() <= b.journey_end() &&
+               a.transfers_ <= b.transfers_;
   }
 
   bool in_interval(csa_journey const& j) const {
